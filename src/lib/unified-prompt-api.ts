@@ -55,25 +55,21 @@ export class UnifiedPromptApi {
         temperature = 0.7
       } = params;
 
-      // Convert chat history to the format expected by the API
-      const formattedHistory = chatHistory.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
-
+      // For mock mode, we don't need to include the chat history
+      // Just use a simpler request format
+      
       // Prepare the request body
       const requestBody = {
         prompt,
-        system: systemPrompt,
-        chat_history: formattedHistory,
-        game_type: gameType.toLowerCase(),
-        personality_id: personality,
-        max_tokens: maxTokens,
+        system_prompt: systemPrompt,
         temperature: temperature
       };
 
+      console.log('Sending API request to:', `${this.apiUrl}/game/prompt`);
+      console.log('Request body:', JSON.stringify(requestBody));
+      
       // Make the API call
-      const response = await fetch(`${this.apiUrl}/api/prompt`, {
+      const response = await fetch(`${this.apiUrl}/game/prompt`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -91,7 +87,7 @@ export class UnifiedPromptApi {
       const data = await response.json();
       
       // Return the AI's response
-      return data.response || '';
+      return data.text || '';
     } catch (error) {
       console.error('Error sending prompt:', error);
       throw new Error(`Failed to send prompt: ${error}`);
