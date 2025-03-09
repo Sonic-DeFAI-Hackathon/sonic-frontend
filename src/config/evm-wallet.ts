@@ -1,226 +1,136 @@
 /**
- * EVM Wallet Integration
- * Integration with EVM-compatible blockchains using Web3 libraries
+ * EVM Wallet Module
+ * 
+ * Handles wallet integration for Ethereum and EVM-compatible chains
  */
-import { createPublicClient, createWalletClient, custom, http, PublicClient, WalletClient } from 'viem';
-import { getConfig } from '@/config/evm';
-import { chainSelector, ChainId } from './chain-selector';
 
-// Extend Window interface to include ethereum property
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-      selectedAddress?: string;
-      on: (eventName: string, callback: (...args: any[]) => void) => void;
-      isMetaMask?: boolean;
-    };
-  }
-}
+import { createPublicClient, createWalletClient, http, custom } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import type { Abi, Chain } from "viem";
+import { chainSelector } from "@/config/chain-selector";
 
-// Interface for transaction response
-export interface TransactionResponse {
+// Export types for other modules to use
+export type ContractAbi = Abi;
+export type TransactionResponse = TransactionResult;
+
+export type TransactionResult = {
   hash: string;
   status: string;
   success?: boolean;
   errorMessage?: string;
-  transactionHash?: string;
+};
+
+// Custom type for ethereum provider that matches window.ethereum
+export type EthereumProvider = NonNullable<typeof window.ethereum>;
+
+interface EVMWalletInterface {
+  init(): Promise<boolean>;
+  getAddress(): string | null;
+  isConnected(): boolean;
+  isEVMWalletInstalled(): boolean;
+  connectWallet(): Promise<boolean>;
+  signOut(): Promise<boolean>;
+  callViewMethod<T>(
+    contractAddress: string, 
+    abi: Abi, 
+    methodName: string, 
+    args?: unknown[]
+  ): Promise<T>;
+  callMethod(
+    contractAddress: string,
+    abi: Abi,
+    methodName: string,
+    args?: unknown[],
+    value?: bigint
+  ): Promise<TransactionResult>;
+  cleanup(): void;
 }
 
-// Define ABI type to avoid using 'any'
-export type ContractAbi = any[]; // Using any[] to fix compatibility issues with contract artifacts
-
 /**
- * EVM Wallet Class
- * Provides wallet functionality for interacting with EVM-compatible blockchains
+ * EVM Wallet Implementation
  */
-export class EVMWallet {
-  private walletClient: WalletClient | null = null;
-  private publicClient: PublicClient | null = null;
+class EVMWallet implements EVMWalletInterface {
   private address: string | null = null;
-  private config = getConfig();
-  private chainId: ChainId = chainSelector.getCurrentChainId();
+  private walletClient: ReturnType<typeof createWalletClient> | null = null;
+  private publicClient: ReturnType<typeof createPublicClient> | null = null;
+  private chainId: number | null = null;
+  private lastChainId: number | null = null;
+  private onAccountsChangedCallback: ((accounts: string[]) => void) | null = null;
+  // Fix: Update the type to accept unknown arguments and cast inside the function
+  private onChainChangedCallback: ((...args: unknown[]) => void) | null = null;
 
   /**
    * Initialize the wallet
    */
   async init(): Promise<boolean> {
     try {
-      // Skip initialization in Node.js environment
-      if (typeof window === 'undefined') {
-        return true;
-      }
-
-      // Check if window.ethereum is available
-      if (!window.ethereum) {
-        console.warn('No wallet provider found');
+      // Check if wallet is installed
+      if (!this.isEVMWalletInstalled()) {
+        // Initialize with public client only (read-only mode)
+        await this.initPublicClient();
         return false;
       }
 
-      // Create a public client for read-only operations
+      // Initialize wallet
+      await this.initPublicClient();
+
+      // Check if already connected
+      if (window.localStorage.getItem("walletConnected") === "true") {
+        return await this.connectWallet();
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Failed to initialize EVM wallet:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Initialize the public client (for read-only operations)
+   */
+  private async initPublicClient(): Promise<void> {
+    try {
+      const currentNetwork = chainSelector.getActiveChain();
+
+      // Create a public client - convert ChainConfig to Chain type
       this.publicClient = createPublicClient({
-        chain: chainSelector.getCurrentChain(),
-        transport: http(this.config.nodeUrl),
-      });
-
-      // Get stored address from localStorage
-      const savedAddress = localStorage.getItem('evmAddress');
-      if (savedAddress) {
-        this.address = savedAddress;
-      }
-
-      // If already connected to wallet, initialize wallet client
-      if (window.ethereum.selectedAddress) {
-        this.address = window.ethereum.selectedAddress;
-        
-        // Only store address if it's not null
-        if (this.address) {
-          localStorage.setItem('evmAddress', this.address);
-        }
-
-        // Create wallet client
-        this.walletClient = createWalletClient({
-          chain: chainSelector.getCurrentChain(),
-          transport: custom(window.ethereum!),
-        });
-
-        // Switch to the correct network if needed
-        await this.ensureCorrectNetwork();
-      }
-
-      // Listen for account changes
-      window.ethereum.on('accountsChanged', (accounts: string[]) => {
-        if (accounts.length === 0) {
-          // User disconnected wallet
-          this.address = null;
-          localStorage.removeItem('evmAddress');
-        } else {
-          // User switched account
-          this.address = accounts[0];
-          if (this.address) {
-            localStorage.setItem('evmAddress', this.address);
-          }
-        }
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Error initializing EVM wallet:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Connect to wallet
-   */
-  async connectWallet(): Promise<boolean> {
-    try {
-      if (!window.ethereum) {
-        console.warn('No wallet provider found');
-        return false;
-      }
-
-      // Request account access - explicitly type the response as string array
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      }) as string[];
-      
-      // Now TypeScript knows accounts is a string array with length property
-      if (accounts && accounts.length > 0) {
-        this.address = accounts[0];
-        // Only store address if it's not null
-        if (this.address) {
-          localStorage.setItem('evmAddress', this.address);
-        }
-
-        // Create wallet client
-        this.walletClient = createWalletClient({
-          chain: chainSelector.getCurrentChain(),
-          transport: custom(window.ethereum!),
-        });
-
-        // Switch to the correct network if needed
-        await this.ensureCorrectNetwork();
-        
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Error connecting to EVM wallet:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Ensure the wallet is connected to the correct network
-   */
-  private async ensureCorrectNetwork(): Promise<boolean> {
-    try {
-      const currentChain = chainSelector.getCurrentChain();
-      const chainId = currentChain.id;
-      
-      if (!window.ethereum) return false;
-      
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: `0x${chainId.toString(16)}` }],
-        });
-        return true;
-      } catch (switchError: unknown) {
-        // Chain doesn't exist, add it
-        const error = switchError as { code: number };
-        if (error.code === 4902) {
-          await this.addEVMNetwork();
-          return true;
-        }
-        throw error;
-      }
-    } catch (error) {
-      console.error('Error ensuring correct network:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Add the EVM network to the wallet if it doesn't exist
-   */
-  private async addEVMNetwork(): Promise<void> {
-    const currentChain = chainSelector.getCurrentChain();
-    const chainId = currentChain.id;
-    const networkName = currentChain.name;
-    const nativeCurrency = currentChain.nativeCurrency;
-    const rpcUrl = currentChain.rpcUrls.default.http[0];
-    const blockExplorerUrl = currentChain.blockExplorers?.default?.url;
-    
-    if (!window.ethereum) return;
-    
-    await window.ethereum.request({
-      method: 'wallet_addEthereumChain',
-      params: [
-        {
-          chainId: `0x${chainId.toString(16)}`,
-          chainName: networkName,
-          nativeCurrency: {
-            name: nativeCurrency.name,
-            symbol: nativeCurrency.symbol,
-            decimals: nativeCurrency.decimals,
+        chain: {
+          id: currentNetwork.chainId,
+          name: currentNetwork.name,
+          rpcUrls: {
+            default: {
+              http: [currentNetwork.rpcUrl],
+            },
+            public: {
+              http: [currentNetwork.rpcUrl],
+            }
           },
-          rpcUrls: [rpcUrl],
-          blockExplorerUrls: blockExplorerUrl ? [blockExplorerUrl] : undefined,
-        },
-      ],
-    });
+          nativeCurrency: currentNetwork.nativeCurrency,
+        } as Chain,
+        transport: http(currentNetwork.rpcUrl),
+      });
+
+      this.chainId = currentNetwork.chainId;
+      this.lastChainId = currentNetwork.chainId;
+    } catch (error) {
+      console.error("Failed to initialize public client:", error);
+      throw error;
+    }
   }
 
   /**
-   * Sign out from wallet
+   * Check if an EVM wallet (like MetaMask) is installed
    */
-  async signOut(): Promise<boolean> {
-    this.address = null;
-    localStorage.removeItem('evmAddress');
-    return true;
+  isEVMWalletInstalled(): boolean {
+    return typeof window !== "undefined" && !!window.ethereum;
+  }
+
+  /**
+   * Check if wallet is connected
+   */
+  isConnected(): boolean {
+    return !!this.address;
   }
 
   /**
@@ -231,24 +141,134 @@ export class EVMWallet {
   }
 
   /**
-   * Check if wallet is connected
+   * Connect to wallet
    */
-  isConnected(): boolean {
-    return !!this.address && !!this.walletClient;
+  async connectWallet(): Promise<boolean> {
+    try {
+      if (!this.isEVMWalletInstalled()) {
+        console.error("No EVM wallet installed");
+        return false;
+      }
+
+      const currentNetwork = chainSelector.getActiveChain();
+      
+      // Initialize wallet client with properly typed ethereum provider
+      this.walletClient = createWalletClient({
+        chain: {
+          id: currentNetwork.chainId,
+          name: currentNetwork.name,
+          rpcUrls: {
+            default: {
+              http: [currentNetwork.rpcUrl],
+            },
+            public: {
+              http: [currentNetwork.rpcUrl],
+            }
+          },
+          nativeCurrency: currentNetwork.nativeCurrency,
+        } as Chain,
+        transport: custom(window.ethereum as EthereumProvider),
+      });
+
+      // Request accounts
+      const [address] = await this.walletClient.requestAddresses();
+
+      // Store wallet connection
+      this.address = address;
+      window.localStorage.setItem("walletConnected", "true");
+
+      // Setup event listeners for wallet
+      this.setupWalletListeners();
+
+      return true;
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+      this.address = null;
+      window.localStorage.removeItem("walletConnected");
+      return false;
+    }
   }
 
   /**
-   * Call a view method on a contract
+   * Set up event listeners for wallet
+   */
+  private setupWalletListeners(): void {
+    if (!window.ethereum) return;
+
+    // Remove existing listeners if any
+    this.removeWalletListeners();
+
+    // Account changed
+    this.onAccountsChangedCallback = (accounts: string[]) => {
+      console.log("Accounts changed:", accounts);
+      if (accounts.length === 0) {
+        // User disconnected
+        this.address = null;
+        window.localStorage.removeItem("walletConnected");
+      } else {
+        // User switched account
+        this.address = accounts[0];
+      }
+    };
+
+    // Chain changed - Fix: Update the callback to accept unknown args and cast inside
+    this.onChainChangedCallback = (...args: unknown[]) => {
+      const chainId = args[0] as string;
+      console.log("Chain changed:", chainId);
+      const newChainId = parseInt(chainId, 16);
+      
+      if (this.chainId !== newChainId) {
+        this.lastChainId = this.chainId;
+        this.chainId = newChainId;
+      }
+    };
+
+    // Add listeners
+    window.ethereum.on("accountsChanged", this.onAccountsChangedCallback as (...args: unknown[]) => void);
+    window.ethereum.on("chainChanged", this.onChainChangedCallback);
+  }
+
+  /**
+   * Remove wallet event listeners
+   */
+  private removeWalletListeners(): void {
+    if (!window.ethereum) return;
+
+    if (this.onAccountsChangedCallback) {
+      window.ethereum.removeListener("accountsChanged", this.onAccountsChangedCallback as (...args: unknown[]) => void);
+    }
+
+    if (this.onChainChangedCallback) {
+      window.ethereum.removeListener("chainChanged", this.onChainChangedCallback);
+    }
+  }
+
+  /**
+   * Sign out from wallet
+   */
+  async signOut(): Promise<boolean> {
+    try {
+      this.address = null;
+      window.localStorage.removeItem("walletConnected");
+      return true;
+    } catch (error) {
+      console.error("Error signing out:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Call a view method (read-only)
    */
   async callViewMethod<T>(
     contractAddress: string,
-    abi: ContractAbi,
+    abi: Abi,
     methodName: string,
     args: unknown[] = []
   ): Promise<T> {
     try {
       if (!this.publicClient) {
-        throw new Error('Public client not initialized');
+        throw new Error("Public client not initialized");
       }
 
       const result = await this.publicClient.readContract({
@@ -266,134 +286,126 @@ export class EVMWallet {
   }
 
   /**
-   * Call a method on a contract that requires signing
+   * Call a state-changing method (requires wallet)
    */
   async callMethod(
     contractAddress: string,
-    abi: ContractAbi,
+    abi: Abi,
     methodName: string,
     args: unknown[] = [],
-    value: bigint = BigInt(0)
-  ): Promise<TransactionResponse> {
+    value?: bigint
+  ): Promise<TransactionResult> {
     try {
-      if (!this.isConnected()) {
-        throw new Error('Wallet not connected');
+      if (!this.walletClient || !this.publicClient) {
+        throw new Error("Wallet or public client not initialized");
       }
 
-      // Get gas settings
-      const gasSettings = await this.getGasSettings();
+      if (!this.address) {
+        throw new Error("Wallet not connected");
+      }
 
-      // Prepare transaction
-      const txParams = {
-        account: this.address ? (this.address as `0x${string}`) : null,
+      const currentChain = chainSelector.getActiveChain();
+      const chainConfig = {
+        id: currentChain.chainId,
+        name: currentChain.name,
+        rpcUrls: {
+          default: {
+            http: [currentChain.rpcUrl],
+          },
+          public: {
+            http: [currentChain.rpcUrl],
+          }
+        },
+        nativeCurrency: currentChain.nativeCurrency,
+      } as Chain;
+
+      // Prepare the transaction
+      await this.publicClient.simulateContract({
         address: contractAddress as `0x${string}`,
         abi,
         functionName: methodName,
         args,
-        value,
-        chain: chainSelector.getCurrentChain(),
-        ...(gasSettings || {}),
-      };
-
-      // Send transaction
-      if (!this.walletClient) {
-        throw new Error('Wallet client not initialized');
-      }
-      
-      // Type assertion to handle the complex type requirements of viem
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const hash = await this.walletClient.writeContract(txParams as any);
-
-      // Wait for transaction receipt
-      if (!this.publicClient) {
-        throw new Error('Public client not initialized');
-      }
-      const receipt = await this.publicClient.waitForTransactionReceipt({
-        hash,
+        account: this.address as `0x${string}`,
+        value: value || undefined,
       });
 
-      // Check if transaction was successful
-      const success = receipt.status === 'success';
+      // Send the transaction
+      const hash = await this.walletClient.writeContract({
+        chain: chainConfig,
+        address: contractAddress as `0x${string}`,
+        abi,
+        functionName: methodName,
+        args,
+        account: this.address as `0x${string}`,
+        value: value || undefined,
+      });
+
+      // Wait for the transaction to be mined
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
 
       return {
         hash: hash,
-        status: receipt.status,
-        success,
-        transactionHash: hash,
+        status: receipt.status === "success" ? "success" : "failed",
+        success: receipt.status === "success",
       };
     } catch (error) {
       console.error(`Error calling method ${methodName}:`, error);
       return {
-        hash: '',
-        status: 'error',
+        hash: "",
+        status: error instanceof Error ? error.message : "Unknown error",
         success: false,
-        errorMessage: error instanceof Error ? error.message : String(error),
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
 
   /**
-   * Get gas settings for transactions
+   * Clean up resources
    */
-  private async getGasSettings(): Promise<{ gasPrice?: bigint; gas?: bigint }> {
+  cleanup(): void {
+    this.removeWalletListeners();
+  }
+
+  /**
+   * Use a private key for account (development/testing only)
+   */
+  usePrivateKey(privateKey: string): void {
+    if (process.env.NODE_ENV !== "development") {
+      console.error("Private keys should only be used in development");
+      return;
+    }
+
     try {
-      if (!this.publicClient) {
-        return {};
-      }
+      const account = privateKeyToAccount(privateKey as `0x${string}`);
+      this.address = account.address;
       
-      // Get current gas price
-      const gasPrice = await this.publicClient.getGasPrice();
+      const currentChain = chainSelector.getActiveChain();
       
-      // Add 10% buffer to gas price
-      const adjustedGasPrice = (gasPrice * BigInt(110)) / BigInt(100);
-      
-      return {
-        gasPrice: adjustedGasPrice,
-      };
-    } catch (error) {
-      console.warn('Error getting gas settings:', error);
-      return {};
-    }
-  }
-
-  /**
-   * Set the chain to use
-   */
-  setChain(chainId: ChainId): void {
-    chainSelector.setChainById(chainId);
-    this.chainId = chainId;
-    
-    // Reinitialize clients with new chain
-    if (typeof window !== 'undefined' && window.ethereum) {
-      this.publicClient = createPublicClient({
-        chain: chainSelector.getCurrentChain(),
-        transport: http(this.config.nodeUrl),
+      // Create wallet client with the private key account
+      this.walletClient = createWalletClient({
+        account,
+        chain: {
+          id: currentChain.chainId,
+          name: currentChain.name,
+          rpcUrls: {
+            default: {
+              http: [currentChain.rpcUrl],
+            },
+            public: {
+              http: [currentChain.rpcUrl],
+            }
+          },
+          nativeCurrency: currentChain.nativeCurrency,
+        } as Chain,
+        transport: http(),
       });
       
-      if (this.isConnected()) {
-        this.walletClient = createWalletClient({
-          chain: chainSelector.getCurrentChain(),
-          transport: custom(window.ethereum!),
-        });
-        
-        // Ensure correct network
-        this.ensureCorrectNetwork().catch(console.error);
-      }
+      window.localStorage.setItem("walletConnected", "true");
+    } catch (error) {
+      console.error("Error using private key:", error);
     }
   }
-
-  /**
-   * Get the current chain ID
-   */
-  getChainId(): ChainId {
-    return this.chainId;
-  }
 }
 
-// Create singleton instance
+// Export a singleton instance
 export const evmWallet = new EVMWallet();
-
-// Initialize wallet on load
-if (typeof window !== 'undefined') {
-  evmWallet.init().catch(console.error);
-}

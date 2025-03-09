@@ -1,168 +1,171 @@
 /**
  * Chain Selector
  * 
- * This module provides a mechanism to select and manage different EVM chains
- * in the application. It allows for easy switching between chains and provides
- * a consistent interface for chain-specific configurations.
+ * Handles selection and management of blockchain networks
  */
-import { Chain } from 'viem';
-import { 
-  sonicBlazeTestnet, 
-  evmMainnet, 
-  evmTestnet, 
-  ethereumMainnet, 
-  ethereumSepolia 
-} from './chain';
+// Remove the unused import
+// import type { BlockchainNetworkConfig } from '@/schemas/blockchain';
 
-// Define available chains
-export enum ChainId {
-  SONIC_BLAZE_TESTNET = 57054,
-  EVM_MAINNET = 52014,
-  EVM_TESTNET = 5201420,
-  ETHEREUM_MAINNET = 1,
-  ETHEREUM_SEPOLIA = 11155111,
+export interface ChainConfig {
+  chainId: number;
+  name: string;
+  rpcUrl: string;
+  blockExplorerUrl: string;
+  nativeCurrency: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  predictionMarketContract: string;
+  gameModesContract: string;
 }
 
-// Chain name mapping
-export const CHAIN_NAMES = {
-  [ChainId.SONIC_BLAZE_TESTNET]: 'Sonic Blaze Testnet',
-  [ChainId.EVM_MAINNET]: 'EVM Mainnet',
-  [ChainId.EVM_TESTNET]: 'EVM Testnet',
-  [ChainId.ETHEREUM_MAINNET]: 'Ethereum Mainnet',
-  [ChainId.ETHEREUM_SEPOLIA]: 'Ethereum Sepolia',
-};
-
-// Chain object mapping
-export const CHAINS: Record<ChainId, Chain> = {
-  [ChainId.SONIC_BLAZE_TESTNET]: sonicBlazeTestnet,
-  [ChainId.EVM_MAINNET]: evmMainnet,
-  [ChainId.EVM_TESTNET]: evmTestnet,
-  [ChainId.ETHEREUM_MAINNET]: ethereumMainnet,
-  [ChainId.ETHEREUM_SEPOLIA]: ethereumSepolia,
-};
-
-// Contract addresses by chain
-export const CONTRACT_ADDRESSES: Record<ChainId, { 
-  predictionMarket: string; 
-  gameModes: string;
-}> = {
-  [ChainId.SONIC_BLAZE_TESTNET]: {
-    predictionMarket: '0x93012953008ef9abcb71f48c340166e8f384e985', // Replace with actual address
-    gameModes: '0xc44de09ab7eefc2a9a2116e04ca1fcec86f520ff', // Replace with actual address
-  },
-  [ChainId.EVM_MAINNET]: {
-    predictionMarket: '0x93012953008ef9abcb71f48c340166e8f384e985',
-    gameModes: '0xc44de09ab7eefc2a9a2116e04ca1fcec86f520ff',
-  },
-  [ChainId.EVM_TESTNET]: {
-    predictionMarket: '0x93012953008ef9abcb71f48c340166e8f384e985',
-    gameModes: '0xc44de09ab7eefc2a9a2116e04ca1fcec86f520ff',
-  },
-  [ChainId.ETHEREUM_MAINNET]: {
-    predictionMarket: '0x0000000000000000000000000000000000000000', // Replace with actual address if deployed
-    gameModes: '0x0000000000000000000000000000000000000000', // Replace with actual address if deployed
-  },
-  [ChainId.ETHEREUM_SEPOLIA]: {
-    predictionMarket: '0x0000000000000000000000000000000000000000', // Replace with actual address if deployed
-    gameModes: '0x0000000000000000000000000000000000000000', // Replace with actual address if deployed
-  },
-};
-
-// Default chain ID (Sonic Blaze Testnet)
-export const DEFAULT_CHAIN_ID = ChainId.SONIC_BLAZE_TESTNET;
-
-// Get chain by ID
-export function getChainById(chainId: ChainId): Chain {
-  return CHAINS[chainId] || CHAINS[DEFAULT_CHAIN_ID];
-}
-
-// Get chain by network name
-export function getChainByNetwork(network: string): Chain {
-  switch (network.toLowerCase()) {
-    case 'sonic-blaze-testnet':
-      return CHAINS[ChainId.SONIC_BLAZE_TESTNET];
-    case 'evm-mainnet':
-      return CHAINS[ChainId.EVM_MAINNET];
-    case 'evm-testnet':
-      return CHAINS[ChainId.EVM_TESTNET];
-    case 'ethereum':
-      return CHAINS[ChainId.ETHEREUM_MAINNET];
-    case 'sepolia':
-      return CHAINS[ChainId.ETHEREUM_SEPOLIA];
-    default:
-      return CHAINS[DEFAULT_CHAIN_ID];
-  }
-}
-
-// Get contract addresses for a specific chain
-export function getContractAddresses(chainId: ChainId) {
-  return CONTRACT_ADDRESSES[chainId] || CONTRACT_ADDRESSES[DEFAULT_CHAIN_ID];
-}
-
-// Chain selector class for managing the current chain
-export class ChainSelector {
-  private static instance: ChainSelector;
-  private currentChainId: ChainId = DEFAULT_CHAIN_ID;
-
-  private constructor() {
-    // Initialize with default chain
-    this.currentChainId = DEFAULT_CHAIN_ID;
-  }
-
-  public static getInstance(): ChainSelector {
-    if (!ChainSelector.instance) {
-      ChainSelector.instance = new ChainSelector();
-    }
-    return ChainSelector.instance;
-  }
-
-  // Get the current chain
-  public getCurrentChain(): Chain {
-    return CHAINS[this.currentChainId];
-  }
-
-  // Get the current chain ID
-  public getCurrentChainId(): ChainId {
-    return this.currentChainId;
-  }
-
-  // Set the current chain by ID
-  public setChainById(chainId: ChainId): void {
-    if (CHAINS[chainId]) {
-      this.currentChainId = chainId;
-    }
-  }
-
-  // Set the current chain by network name
-  public setChainByNetwork(network: string): void {
-    const chain = getChainByNetwork(network);
-    const chainId = Object.keys(CHAINS).find(
-      id => CHAINS[Number(id) as ChainId] === chain
-    );
+/**
+ * Chain Selector - Manages available chains and current selection
+ */
+class ChainSelector {
+  private chains: Record<number, ChainConfig> = {};
+  private activeChainId: number;
+  
+  constructor() {
+    // Initialize with Sonic Blaze Testnet by default
+    this.activeChainId = 57054;
     
-    if (chainId) {
-      this.currentChainId = Number(chainId) as ChainId;
+    // Add Sonic Blaze Testnet
+    this.chains[57054] = {
+      chainId: 57054,
+      name: "Sonic Blaze Testnet",
+      rpcUrl: "https://sonic-testnet.drpc.org",
+      blockExplorerUrl: "https://explorer.sonic.app",
+      nativeCurrency: {
+        name: "Sonic",
+        symbol: "S",
+        decimals: 18,
+      },
+      predictionMarketContract: "0x1234567890123456789012345678901234567890",
+      gameModesContract: "0x0987654321098765432109876543210987654321",
+    };
+    
+    // Add Sepolia testnet
+    this.chains[11155111] = {
+      chainId: 11155111,
+      name: "Sepolia",
+      rpcUrl: "https://eth-sepolia.g.alchemy.com/v2/your-api-key",
+      blockExplorerUrl: "https://sepolia.etherscan.io",
+      nativeCurrency: {
+        name: "Sepolia Ether",
+        symbol: "ETH",
+        decimals: 18,
+      },
+      predictionMarketContract: "0x1234567890123456789012345678901234567890",
+      gameModesContract: "0x0987654321098765432109876543210987654321",
+    };
+    
+    // Add Arbitrum Sepolia testnet
+    this.chains[421614] = {
+      chainId: 421614,
+      name: "Arbitrum Sepolia",
+      rpcUrl: "https://sepolia-rollup.arbitrum.io/rpc",
+      blockExplorerUrl: "https://sepolia.arbiscan.io",
+      nativeCurrency: {
+        name: "Arbitrum Sepolia Ether",
+        symbol: "ETH",
+        decimals: 18,
+      },
+      predictionMarketContract: "0xabcdef1234567890abcdef1234567890abcdef12",
+      gameModesContract: "0x123456abcdef7890123456abcdef7890123456ab",
+    };
+  }
+  
+  /**
+   * Get all available chains
+   */
+  getChains(): ChainConfig[] {
+    return Object.values(this.chains);
+  }
+  
+  /**
+   * Get chain by ID
+   */
+  getChain(chainId: number): ChainConfig | undefined {
+    return this.chains[chainId];
+  }
+  
+  /**
+   * Get currently active chain
+   */
+  getActiveChain(): ChainConfig {
+    return this.chains[this.activeChainId];
+  }
+  
+  /**
+   * Set active chain
+   */
+  setActiveChain(chainId: number): boolean {
+    if (this.chains[chainId]) {
+      this.activeChainId = chainId;
+      return true;
     }
+    return false;
+  }
+  
+  /**
+   * Get current active chain ID
+   */
+  getActiveChainId(): number {
+    return this.activeChainId;
+  }
+  
+  /**
+   * Add or update a chain configuration
+   */
+  addChain(config: ChainConfig): void {
+    this.chains[config.chainId] = config;
+  }
+  
+  /**
+   * Check if chain is supported
+   */
+  isChainSupported(chainId: number): boolean {
+    return !!this.chains[chainId];
   }
 
-  // Get contract addresses for the current chain
-  public getContractAddresses() {
-    return CONTRACT_ADDRESSES[this.currentChainId];
+  /**
+   * Get the address of the game modes contract for the active chain
+   */
+  getGameModesAddress(): string {
+    return this.chains[this.activeChainId].gameModesContract;
+  }
+  
+  /**
+   * Get the address of the prediction market contract for the active chain
+   */
+  getPredictionMarketAddress(): string {
+    return this.chains[this.activeChainId].predictionMarketContract;
   }
 
-  // Get the prediction market contract address
-  public getPredictionMarketAddress(): string {
-    return CONTRACT_ADDRESSES[this.currentChainId].predictionMarket;
+  /**
+   * Get current chain configuration (alias for getActiveChain)
+   */
+  getCurrentConfig(): ChainConfig {
+    return this.getActiveChain();
   }
 
-  // Get the game modes contract address
-  public getGameModesAddress(): string {
-    return CONTRACT_ADDRESSES[this.currentChainId].gameModes;
+  /**
+   * Get current chain ID (alias for getActiveChainId)
+   */
+  getCurrentChainId(): number {
+    return this.activeChainId;
+  }
+  
+  /**
+   * Get current chain
+   */
+  getCurrentChain(): ChainConfig {
+    return this.chains[this.activeChainId];
   }
 }
 
-// Export singleton instance
-export const chainSelector = ChainSelector.getInstance();
-
-// Default export
+// Export a singleton instance
+export const chainSelector = new ChainSelector();
 export default chainSelector;

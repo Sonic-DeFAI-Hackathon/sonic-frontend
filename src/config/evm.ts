@@ -1,9 +1,8 @@
 /**
  * EVM Configuration
- * 
- * Single source of truth for all EVM-related settings
  */
-import { chainSelector, ChainId, CONTRACT_ADDRESSES } from './chain-selector';
+import { chainSelector } from './chain-selector';
+import type { ChainConfig } from './chain-selector';
 
 // Network configuration
 export const NETWORKS = {
@@ -17,6 +16,30 @@ export type Network = typeof NETWORKS[keyof typeof NETWORKS];
 // Current network based on environment
 export const CURRENT_NETWORK = (process.env.NEXT_PUBLIC_EVM_NETWORK || 'testnet') as Network;
 
+// Chain IDs
+export enum ChainId {
+  ETHEREUM_MAINNET = 1,
+  ETHEREUM_SEPOLIA = 11155111,
+  ARBITRUM_SEPOLIA = 421614,
+  SONIC_BLAZE_TESTNET = 57054 // Corrected Sonic Blaze Testnet chain ID
+}
+
+// Contract addresses by chain
+export const CONTRACT_ADDRESSES: Record<number, { predictionMarket: string; gameModes: string }> = {
+  [ChainId.ETHEREUM_SEPOLIA]: {
+    predictionMarket: "0x1234567890123456789012345678901234567890",
+    gameModes: "0x0987654321098765432109876543210987654321",
+  },
+  [ChainId.ARBITRUM_SEPOLIA]: {
+    predictionMarket: "0xabcdef1234567890abcdef1234567890abcdef12",
+    gameModes: "0x123456abcdef7890123456abcdef7890123456ab",
+  },
+  [ChainId.SONIC_BLAZE_TESTNET]: {
+    predictionMarket: "0x1234567890123456789012345678901234567890",
+    gameModes: "0x0987654321098765432109876543210987654321",
+  }
+};
+
 // Get the appropriate contract addresses for the current chain
 const currentChainId = ChainId.SONIC_BLAZE_TESTNET; // Default to Sonic Blaze Testnet
 const NETWORK_CONTRACTS = CONTRACT_ADDRESSES[currentChainId];
@@ -29,30 +52,30 @@ export const GAME_MODES_CONTRACT_ID = NETWORK_CONTRACTS.gameModes;
 const currentChain = chainSelector.getCurrentChain();
 const NETWORK_CONFIGS = {
   [NETWORKS.MAINNET]: {
-    nodeUrl: currentChain.rpcUrls.default.http[0],
+    nodeUrl: currentChain.rpcUrl,
     walletUrl: 'https://wallet.evm.com',
-    explorerUrl: currentChain.blockExplorers?.default?.url || '',
-    chainId: currentChain.id,
+    explorerUrl: currentChain.blockExplorerUrl,
+    chainId: currentChain.chainId,
   },
   [NETWORKS.TESTNET]: {
-    nodeUrl: currentChain.rpcUrls.default.http[0],
+    nodeUrl: currentChain.rpcUrl,
     walletUrl: 'https://testnet.wallet.evm.com',
-    explorerUrl: currentChain.blockExplorers?.default?.url || '',
-    chainId: currentChain.id,
+    explorerUrl: currentChain.blockExplorerUrl,
+    chainId: currentChain.chainId,
   },
   [NETWORKS.DEVELOPMENT]: {
-    nodeUrl: currentChain.rpcUrls.default.http[0],
+    nodeUrl: currentChain.rpcUrl,
     walletUrl: 'https://testnet.wallet.evm.com',
-    explorerUrl: currentChain.blockExplorers?.default?.url || '',
-    chainId: currentChain.id,
+    explorerUrl: currentChain.blockExplorerUrl,
+    chainId: currentChain.chainId,
   },
 };
 
 // Get network config for the current network
 export const CURRENT_NETWORK_CONFIG = NETWORK_CONFIGS[CURRENT_NETWORK] || NETWORK_CONFIGS[NETWORKS.TESTNET];
 
-// Gas values for contract calls
-export const GAS_VALUES = {
+// Gas limits for different types of operations
+export const GAS_LIMITS = {
   DEFAULT: '3000000', // 3M gas units
   HIGH: '5000000',    // 5M gas units
   LOW: '1000000',     // 1M gas units
@@ -124,24 +147,36 @@ export const CHANGE_METHODS = {
     'createRaid',
     'attemptRaid',
     'completeRaid',
-    'withdraw',
+    'claimReward',
   ],
 };
 
-// Configuration function (maintain backward compatibility)
-export const getConfig = (env: string = CURRENT_NETWORK) => {
-  // Convert env string to network type
-  const networkId = env === 'mainnet' ? NETWORKS.MAINNET : 
-                   (env === 'testnet' ? NETWORKS.TESTNET : NETWORKS.DEVELOPMENT);
-  const contracts = CONTRACT_ADDRESSES[chainSelector.getCurrentChainId()];
-  const config = NETWORK_CONFIGS[networkId];
-  
-  return {
-    networkId,
-    ...config,
-    predictionMarketContract: contracts.predictionMarket,
-    gameModesContract: contracts.gameModes,
-  };
+/**
+ * Get current EVM configuration
+ */
+export const getConfig = (): ChainConfig => {
+  return chainSelector.getCurrentChain();
+};
+
+/**
+ * Get chain ID
+ */
+export const getChainId = (): number => {
+  return chainSelector.getCurrentChainId();
+};
+
+/**
+ * Get prediction market contract address
+ */
+export const getPredictionMarketAddress = (): string => {
+  return chainSelector.getPredictionMarketAddress();
+};
+
+/**
+ * Get game modes contract address
+ */
+export const getGameModesAddress = (): string => {
+  return chainSelector.getGameModesAddress();
 };
 
 // Export the complete configuration for the current network
@@ -152,7 +187,7 @@ export const CONFIG = {
     predictionMarket: PREDICTION_CONTRACT_ID,
     gameModes: GAME_MODES_CONTRACT_ID,
   },
-  gas: GAS_VALUES,
+  gas: GAS_LIMITS,
   methods: CONTRACT_METHODS,
   viewMethods: VIEW_METHODS,
   changeMethods: CHANGE_METHODS,

@@ -11,6 +11,13 @@ import {
 import { evmWallet, ContractAbi, TransactionResponse } from '@/config/evm-wallet';
 import baultroFinalAbi from '@/abis/BaultroFinal.json';
 import baultroGamesAbi from '@/abis/BaultroGames.json';
+import type { Abi } from 'viem';
+
+// Contract artifact interface
+interface ContractArtifact {
+  abi: ContractAbi;
+  [key: string]: unknown;
+}
 
 /**
  * Service for EVM blockchain interactions
@@ -60,13 +67,16 @@ export class EVMService {
       // Convert request args to array format expected by the contract
       const args = request.method ? this.convertArgsToArray(request.method, request.args || {}) : [];
 
+      // Calculate value (if any)
+      const value = request.deposit ? BigInt(request.deposit) : BigInt(0);
+
       // Execute transaction
       const result = await evmWallet.callMethod(
         contractAddress,
         this.getContractAbi(request.contract),
         request.method || '',
         args,
-        request.deposit ? BigInt(request.deposit) : BigInt(0)
+        value
       );
 
       // Check transaction status
@@ -173,18 +183,18 @@ export class EVMService {
   /**
    * Get contract ABI by name
    */
-  private getContractAbi(contractName?: string): any[] {
+  private getContractAbi(contractName?: string): Abi {
     if (!contractName) {
-      return baultroFinalAbi.abi;
+      return baultroFinalAbi.abi as Abi;
     }
 
     switch (contractName) {
       case 'predictionMarket':
-        return baultroFinalAbi.abi;
+        return baultroFinalAbi.abi as Abi;
       case 'gameModesContract':
-        return baultroGamesAbi.abi;
+        return baultroGamesAbi.abi as Abi;
       default:
-        return baultroFinalAbi.abi;
+        return baultroFinalAbi.abi as Abi;
     }
   }
 
@@ -359,12 +369,12 @@ export class EVMService {
    */
   async callContractViewMethod<T>(
     contractAddress: string,
-    abi: any, // Accept any contract artifact/ABI format
+    abi: ContractAbi | ContractArtifact,
     methodName: string,
     args: unknown[] = []
   ): Promise<T> {
     // Extract the ABI array if we're passed a contract artifact object
-    const abiArray: ContractAbi = Array.isArray(abi) ? abi : (abi && abi.abi ? abi.abi : []);
+    const abiArray: Abi = Array.isArray(abi) ? (abi as Abi) : (abi && 'abi' in abi ? abi.abi as Abi : [] as unknown as Abi);
     
     return evmWallet.callViewMethod<T>(
       contractAddress,
@@ -379,20 +389,21 @@ export class EVMService {
    */
   async callContractMethod(
     contractAddress: string,
-    abi: any, // Accept any contract artifact/ABI format
+    abi: ContractAbi | ContractArtifact,
     methodName: string,
     args: unknown[] = [],
-    value: bigint = BigInt(0)
+    value: string = "0"
   ): Promise<TransactionResponse> {
     // Extract the ABI array if we're passed a contract artifact object
-    const abiArray: ContractAbi = Array.isArray(abi) ? abi : (abi && abi.abi ? abi.abi : []);
+    const abiArray: Abi = Array.isArray(abi) ? (abi as Abi) : (abi && 'abi' in abi ? abi.abi as Abi : [] as unknown as Abi);
+    const valueBigInt = BigInt(value);
     
     return evmWallet.callMethod(
       contractAddress,
       abiArray,
       methodName,
       args,
-      value
+      valueBigInt
     );
   }
 
