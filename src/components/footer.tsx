@@ -4,9 +4,9 @@ import React from "react";
 export default function Footer() {
   return (
     <footer className="border-t py-6 md:py-8">
-      <div className="container flex flex-col items-center justify-between gap-4 md:flex-row">
-        <div className="text-center md:text-left text-sm">
-          <p className="text-muted-foreground">
+      <div className="container flex flex-col items-center justify-between gap-4 md:flex-row ml-6">
+        <div className="text-center md:text-left text-sm ml-6">
+          <p className="text-muted-foreground ml-6">
             &copy; {new Date().getFullYear()} Baultro - All rights reserved
           </p>
         </div>

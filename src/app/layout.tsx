@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Baultro - AI-Powered Blockchain Gaming",
+  title: "Baultro AI",
   description: "The multiplayer platform",
   icons: {
     icon: "/logos/baultro.svg",

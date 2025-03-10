@@ -87,6 +87,7 @@ export default function Navigation() {
 
         {/* Mobile Menu Button */}
         <button
+        title="Menu"
           className="md:hidden p-2 rounded-md"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
@@ -144,16 +145,17 @@ export default function Navigation() {
                 Leaderboard
               </Link>
               <Button
-                onClick={() => {
-                  handleConnectWallet();
-                  setIsMenuOpen(false);
-                }}
-                className="mt-2"
-              >
-                {isConnected
-                  ? `${formatAddress(address || "")}`
-                  : "Connect Wallet"}
-              </Button>
+  onClick={() => {
+    handleConnectWallet();
+    setIsMenuOpen(false);
+  }}
+  className="mt-2"
+  variant={isConnected ? "outline" : "default"}
+>
+  {isConnected
+    ? `${formatAddress(address || "")}`
+    : "Connect Wallet"}
+</Button>
             </div>
           </DialogContent>
         </Dialog>

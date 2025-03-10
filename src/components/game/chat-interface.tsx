@@ -9,9 +9,20 @@ import { GameType, DifficultyLevel, GameAttemptResult } from "@/shared/schemas/g
 import { useWallet } from "@/providers/evm-wallet-provider";
 import { AIServiceFactory, AIProviderType } from "@/lib/ai-service-factory";
 import Image from "next/image";
-import { chainSelector } from "@/config/chain-selector";
-// Import toast directly from sonner instead of using the custom hook
 import { toast } from "sonner";
+import { toWei } from "@/utils/token-utils";
+
+// Import chain configuration to get contract addresses
+import { chainSelector } from "@/config/chain-selector";
+import baultroGamesABI from "@/abis/BaultroGames.json";
+
+// Define transaction result type that includes optional errorMessage
+interface TransactionResult {
+  hash: string;
+  status: string;
+  success: boolean;
+  errorMessage?: string;
+}
 
 interface ChatInterfaceProps {
   gameType: GameType;
@@ -45,10 +56,14 @@ export function ChatInterface({
   const [gameSessionId, setGameSessionId] = useState<string | null>(null);
   const [gameSecretPhrase, setGameSecretPhrase] = useState<string | null>(null);
   const [transactionInProgress, setTransactionInProgress] = useState(false);
+  const [matchId, setMatchId] = useState<number | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-
+  
   // Get string representation of game type
   const gameTypeString = GameType[gameType];
+
+  // Get the contract address from the configuration
+  const contractAddress = chainSelector.getActiveChain().predictionMarketContract;
   
   // Get maximum attempts based on difficulty
   function getDifficultyAttempts(difficulty: DifficultyLevel): number {
@@ -75,11 +90,11 @@ export function ChatInterface({
       [DifficultyLevel.HARD]: 2,
       [DifficultyLevel.EXPERT]: 3
     }[difficulty] || 1;
-
+    
     // Bonus for using fewer attempts
     const maxAttemptsForDifficulty = getDifficultyAttempts(difficulty);
     const attemptsBonus = 1 + ((maxAttemptsForDifficulty - attemptsMade) / maxAttemptsForDifficulty);
-
+    
     const reward = baseReward * difficultyMultiplier * attemptsBonus;
     return reward.toFixed(2);
   }
@@ -123,16 +138,26 @@ export function ChatInterface({
           try {
             setTransactionInProgress(true);
             
-            // Call contract to place stake
-            await callMethod(
-              "createGameSession", 
-              [gameTypeString, difficultyLevel.toString()], 
-              stakeAmount,
-              chainSelector.getGameModesAddress()
-            );
+            // Call BaultroGames contract to create a match
+            // Using createMatch(address opponentId, string gameMode)
+            const txResult = await callMethod(
+              "createMatch",
+              ["0x0000000000000000000000000000000000000000", gameTypeString.toLowerCase()],
+              toWei(stakeAmount),
+              contractAddress
+            ) as TransactionResult;
             
-            // Show success toast with Sonner
-            toast.success(`Successfully staked ${stakeAmount} SONIC for this game.`);
+            if (txResult.success) {
+              // Show success toast with Sonner
+              toast.success(`Successfully staked ${stakeAmount} S for this game.`);
+              
+              // Store the match ID for future reference (if available)
+              // Note: In a production app, you'd want to get the actual match ID from the transaction events
+              setMatchId(Date.now());
+            } else {
+              console.error("Transaction failed:", txResult.status);
+              toast.error(`Transaction failed: ${txResult.status || "Unknown error"}`);
+            }
           } catch (err) {
             console.error("Error staking for game:", err);
             setError("Failed to stake tokens. The game will continue but without rewards.");
@@ -156,7 +181,7 @@ export function ChatInterface({
     };
     
     initChat();
-  }, [gameTypeString, personalityId, aiProvider, difficultyLevel, stakeAmount, isConnected, callMethod, gameType, gameSecretPhrase]);
+  }, [gameTypeString, personalityId, aiProvider, difficultyLevel, stakeAmount, isConnected, callMethod, gameType, gameSecretPhrase, contractAddress]);
   
   // Helper for converting difficulty to string
   function getDifficultyString(difficulty: DifficultyLevel): string {
@@ -315,26 +340,32 @@ export function ChatInterface({
             maxAttempts: maxAttempts,
             timeElapsed: timeTaken,
             feedback: getSuccessFeedback(gameType),
-            reward: `${reward} SONIC`,
+            reward: `${reward} S`,
             gameSessionId: gameSessionId || undefined
           });
         }
         
         // Submit transaction for claiming reward if connected
-        if (isConnected && gameSessionId) {
+        if (isConnected && matchId !== null) {
           try {
             setTransactionInProgress(true);
             
-            // Call contract to claim reward
-            await callMethod(
-              "completeGameSession", 
-              [gameSessionId, "true"], 
+            // Call BaultroGames contract to end the match
+            // Using endMatch(uint64 matchId, address winnerId, string verificationHash)
+            const txResult = await callMethod(
+              "endMatch", 
+              [BigInt(matchId), "0x0000000000000000000000000000000000000000", gameSessionId || "game-verification"], 
               "0",
-              chainSelector.getGameModesAddress()
-            );
+              contractAddress
+            ) as TransactionResult;
             
-            // Show reward toast with Sonner
-            toast.success(`You've earned ${reward} SONIC as a reward!`);
+            if (txResult.success) {
+              // Show reward toast with Sonner
+              toast.success(`You've earned ${reward} S as a reward!`);
+            } else {
+              console.error("Transaction failed:", txResult.status);
+              toast.error(`Transaction failed: ${txResult.status || "Unknown error"}`);
+            }
           } catch (err) {
             console.error("Error claiming reward:", err);
             setError("Failed to claim reward. Please try again later.");
@@ -366,25 +397,6 @@ export function ChatInterface({
               feedback: "You've reached the maximum number of attempts.",
               gameSessionId: gameSessionId || undefined
             });
-          }
-          
-          // Submit transaction for failed game if connected
-          if (isConnected && gameSessionId) {
-            try {
-              setTransactionInProgress(true);
-              
-              // Call contract to end failed game session
-              await callMethod(
-                "completeGameSession", 
-                [gameSessionId, "false"], 
-                "0",
-                chainSelector.getGameModesAddress()
-              );
-            } catch (err) {
-              console.error("Error ending game session:", err);
-            } finally {
-              setTransactionInProgress(false);
-            }
           }
         }
       }

@@ -102,10 +102,10 @@ export function GameConfig({ gameType, onStart }: GameConfigProps) {
   
   // Get difficulty options
   const difficultyOptions = [
-    { value: DifficultyLevel.EASY, label: "Easy", reward: "5 Sonic", fee: "1 Sonic" },
-    { value: DifficultyLevel.MEDIUM, label: "Medium", reward: "10 Sonic", fee: "2 Sonic" },
-    { value: DifficultyLevel.HARD, label: "Hard", reward: "25 Sonic", fee: "5 Sonic" },
-    { value: DifficultyLevel.EXPERT, label: "Expert", reward: "50 Sonic", fee: "10 Sonic" }
+    { value: DifficultyLevel.EASY, label: "Easy", reward: "Demo Sonic", fee: "1 Sonic" },
+    { value: DifficultyLevel.MEDIUM, label: "Medium", reward: "Demo Sonic", fee: "2 Sonic" },
+    { value: DifficultyLevel.HARD, label: "Hard", reward: "Demo Sonic", fee: "5 Sonic" },
+    { value: DifficultyLevel.EXPERT, label: "Expert", reward: "Demo Sonic", fee: "10 Sonic" }
   ];
   
   // Get AI provider options

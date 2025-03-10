@@ -35,8 +35,8 @@ export const CONTRACT_ADDRESSES: Record<number, { predictionMarket: string; game
     gameModes: "0x123456abcdef7890123456abcdef7890123456ab",
   },
   [ChainId.SONIC_BLAZE_TESTNET]: {
-    predictionMarket: "0x1234567890123456789012345678901234567890",
-    gameModes: "0x0987654321098765432109876543210987654321",
+    predictionMarket: "0xC44DE09ab7eEFC2a9a2116E04ca1fcEc86F520fF", // Updated with the actual BaultroGames contract address
+    gameModes: "0xC44DE09ab7eEFC2a9a2116E04ca1fcEc86F520fF", // Updated with the actual BaultroGames contract address
   }
 };
 
@@ -78,6 +78,18 @@ export const GAS_LIMITS = {
 // Methods mapping for contracts
 export const CONTRACT_METHODS = {
   predictionMarket: {
+    // Add BaultroGames functions to predictionMarket for Sonic Blaze Testnet
+    createMatch: 'createMatch',
+    joinMatch: 'joinMatch',
+    endMatch: 'endMatch',
+    createRaid: 'createRaid',
+    attemptRaid: 'attemptRaid',
+    completeRaid: 'completeRaid',
+    getMatch: 'getMatch',
+    getMatches: 'getMatches',
+    getRaid: 'getRaid',
+    getRaids: 'getRaids',
+    // Keep original predictionMarket methods for backward compatibility
     createPrediction: 'createPrediction',
     placeBet: 'placeBet',
     resolvePrediction: 'resolvePrediction',
@@ -106,6 +118,12 @@ export const CONTRACT_METHODS = {
 // View methods that don't require signing
 export const VIEW_METHODS = {
   predictionMarket: [
+    // Add BaultroGames view methods
+    'getMatch',
+    'getMatches',
+    'getRaid',
+    'getRaids',
+    // Keep original view methods
     'getPrediction',
     'getPredictions',
     'getPredictionsCount',
@@ -126,6 +144,14 @@ export const VIEW_METHODS = {
 // Change methods that require signing
 export const CHANGE_METHODS = {
   predictionMarket: [
+    // Add BaultroGames methods that require signing
+    'createMatch',
+    'joinMatch',
+    'endMatch',
+    'createRaid',
+    'attemptRaid',
+    'completeRaid',
+    // Keep original methods
     'createPrediction',
     'placeBet',
     'resolvePrediction',
@@ -156,7 +182,7 @@ export const getConfig = (): ChainConfig => {
  * Get chain ID
  */
 export const getChainId = (): number => {
-  return chainSelector.getActiveChainId(); // Fix: use getActiveChainId instead of getCurrentChainId
+  return chainSelector.getActiveChainId();
 };
 
 /**
@@ -178,8 +204,8 @@ export const CONFIG = {
   networkId: CURRENT_NETWORK,
   ...CURRENT_NETWORK_CONFIG,
   contracts: {
-    predictionMarket: CONTRACT_ADDRESSES[currentChain.chainId].predictionMarket,
-    gameModes: CONTRACT_ADDRESSES[currentChain.chainId].gameModes,
+    predictionMarket: CONTRACT_ADDRESSES[currentChain.chainId]?.predictionMarket || "",
+    gameModes: CONTRACT_ADDRESSES[currentChain.chainId]?.gameModes || "",
   },
   gas: GAS_LIMITS,
   methods: CONTRACT_METHODS,

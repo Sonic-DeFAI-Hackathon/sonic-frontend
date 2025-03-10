@@ -31,28 +31,28 @@ export function GameResult({
     if (result.success) {
       switch (gameType) {
         case GameType.BATTLE:
-          return "/decor/results/battle-success.png";
+          return "/decor/results/check-succes.svg";
         case GameType.LOVE:
-          return "/decor/results/love-success.png";
+          return "/decor/results/check-succes.svg";
         case GameType.MYSTERY:
-          return "/decor/results/mystery-success.png";
+          return "/decor/results/check-succes.svg";
         case GameType.RAID:
-          return "/decor/results/raid-success.png";
+          return "/decor/results/check-succes.svg";
         default:
-          return "/decor/results/success.png";
+          return "/decor/results/check-succes.svg";
       }
     } else {
       switch (gameType) {
         case GameType.BATTLE:
-          return "/decor/results/battle-fail.png";
+          return "/decor/results/cross-fail.svg";
         case GameType.LOVE:
-          return "/decor/results/love-fail.png";
+          return "/decor/results/cross-fail.svg";
         case GameType.MYSTERY:
-          return "/decor/results/mystery-fail.png";
+          return "/decor/results/cross-fail.svg";
         case GameType.RAID:
-          return "/decor/results/raid-fail.png";
+          return "/decor/results/cross-fail.svg";
         default:
-          return "/decor/results/fail.png";
+          return "/decor/results/cross-fail.svg";
       }
     }
   };

@@ -37,11 +37,11 @@ class ChainSelector {
       blockExplorerUrl: "https://testnet.sonicscan.org",
       nativeCurrency: {
         name: "Sonic",
-        symbol: "SONIC",
+        symbol: "S",
         decimals: 18,
       },
-      predictionMarketContract: "0x1234567890123456789012345678901234567890",
-      gameModesContract: "0x0987654321098765432109876543210987654321",
+      predictionMarketContract: "0xC44DE09ab7eEFC2a9a2116E04ca1fcEc86F520fF",
+      gameModesContract: "0xC44DE09ab7eEFC2a9a2116E04ca1fcEc86F520fF",
     };
   }
   
