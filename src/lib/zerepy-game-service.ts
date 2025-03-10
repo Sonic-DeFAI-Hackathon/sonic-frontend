@@ -9,8 +9,11 @@ import { DifficultyLevel } from "@/shared/schemas/game/types";
 import { UnifiedPromptApi } from "@/lib/unified-prompt-api";
 import { systemPrompts } from "@/lib/ai/game-system-prompts";
 
-// Default API endpoint
-const DEFAULT_API_ENDPOINT = "http://localhost:8000";
+// Import environment configuration
+import { getZerePyApiUrl } from "@/lib/env";
+
+// Get API endpoint from environment
+const DEFAULT_API_ENDPOINT = getZerePyApiUrl();
 
 /**
  * ZerePy Game Service - Handles interactions with the ZerePy AI system
@@ -203,6 +206,12 @@ export class ZerePyGameService {
     gameType: string,
     secretPhrase?: string
   ): boolean {
+    // Check if we're in mock mode (Together AI mock response)
+    if (response.includes('[MOCK TOGETHER AI]') || response.includes('[TOGETHER AI ERROR]')) {
+      // In mock mode, just return a random success value for demo purposes
+      return Math.random() > 0.7; 
+    }
+
     const lowerResponse = response.toLowerCase();
     
     switch (gameType) {

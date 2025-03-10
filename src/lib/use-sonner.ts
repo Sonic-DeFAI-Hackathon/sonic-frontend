@@ -1,4 +1,4 @@
-import { toast as sonnerToast } from "sonner";
+import { toast } from "sonner";
 
 type ToastType = "default" | "success" | "error" | "warning" | "info";
 
@@ -14,60 +14,10 @@ export interface ToastProps {
 }
 
 /**
- * Custom hook for consistent toast notifications using Sonner
+ * A simple wrapper around sonner toast for consistent usage
  */
 export const useToast = () => {
-  const toast = ({ 
-    title, 
-    description, 
-    variant = "default",
-    action,
-    duration,
-    position,
-    onDismiss,
-    onAutoClose
-  }: ToastProps) => {
-    const options = {
-      action,
-      duration,
-      position,
-      onDismiss,
-      onAutoClose
-    };
-
-    switch (variant) {
-      case "success":
-        sonnerToast.success(title, {
-          description,
-          ...options
-        });
-        break;
-      case "error":
-        sonnerToast.error(title, {
-          description,
-          ...options
-        });
-        break;
-      case "warning":
-        sonnerToast.warning(title, {
-          description,
-          ...options
-        });
-        break;
-      case "info":
-        sonnerToast.info(title, {
-          description,
-          ...options
-        });
-        break;
-      default:
-        sonnerToast(title, {
-          description,
-          ...options
-        });
-        break;
-    }
-  };
-
   return { toast };
 };
+
+export default useToast;

@@ -10,8 +10,8 @@ import { useWallet } from "@/providers/evm-wallet-provider";
 import { AIServiceFactory, AIProviderType } from "@/lib/ai-service-factory";
 import Image from "next/image";
 import { chainSelector } from "@/config/chain-selector";
-// Import the toast hook from use-sonner instead
-import { useToast } from "@/lib/use-sonner";
+// Import toast directly from sonner instead of using the custom hook
+import { toast } from "sonner";
 
 interface ChatInterfaceProps {
   gameType: GameType;
@@ -46,8 +46,6 @@ export function ChatInterface({
   const [gameSecretPhrase, setGameSecretPhrase] = useState<string | null>(null);
   const [transactionInProgress, setTransactionInProgress] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  // Add toast hook from Sonner
-  const { toast } = useToast();
 
   // Get string representation of game type
   const gameTypeString = GameType[gameType];
@@ -134,21 +132,13 @@ export function ChatInterface({
             );
             
             // Show success toast with Sonner
-            toast({
-              title: "Stake Placed",
-              description: `Successfully staked ${stakeAmount} SONIC for this game.`,
-              variant: "success"
-            });
+            toast.success(`Successfully staked ${stakeAmount} SONIC for this game.`);
           } catch (err) {
             console.error("Error staking for game:", err);
             setError("Failed to stake tokens. The game will continue but without rewards.");
             
             // Show error toast with Sonner
-            toast({
-              title: "Staking Failed",
-              description: "Failed to stake tokens. The game will continue but without rewards.",
-              variant: "error"
-            });
+            toast.error("Failed to stake tokens. The game will continue but without rewards.");
           } finally {
             setTransactionInProgress(false);
           }
@@ -159,18 +149,14 @@ export function ChatInterface({
         setError("Failed to initialize chat. Please try again.");
         
         // Show error toast with Sonner
-        toast({
-          title: "Initialization Failed",
-          description: "Failed to initialize chat. Please try again.",
-          variant: "error"
-        });
+        toast.error("Failed to initialize chat. Please try again.");
       } finally {
         setIsInitializing(false);
       }
     };
     
     initChat();
-  }, [gameTypeString, personalityId, aiProvider, difficultyLevel, stakeAmount, isConnected, callMethod, gameType, gameSecretPhrase, toast]);
+  }, [gameTypeString, personalityId, aiProvider, difficultyLevel, stakeAmount, isConnected, callMethod, gameType, gameSecretPhrase]);
   
   // Helper for converting difficulty to string
   function getDifficultyString(difficulty: DifficultyLevel): string {
@@ -318,11 +304,7 @@ export function ChatInterface({
         const reward = calculateReward(difficultyLevel, attempts);
         
         // Show success toast with Sonner
-        toast({
-          title: "Success!",
-          description: getSuccessFeedback(gameType),
-          variant: "success"
-        });
+        toast.success(getSuccessFeedback(gameType));
         
         // Game ended with success
         if (onGameEnd) {
@@ -352,21 +334,13 @@ export function ChatInterface({
             );
             
             // Show reward toast with Sonner
-            toast({
-              title: "Reward Claimed",
-              description: `You've earned ${reward} SONIC as a reward!`,
-              variant: "success"
-            });
+            toast.success(`You've earned ${reward} SONIC as a reward!`);
           } catch (err) {
             console.error("Error claiming reward:", err);
             setError("Failed to claim reward. Please try again later.");
             
             // Show error toast with Sonner
-            toast({
-              title: "Claim Failed",
-              description: "Failed to claim reward. Please try again later.",
-              variant: "error"
-            });
+            toast.error("Failed to claim reward. Please try again later.");
           } finally {
             setTransactionInProgress(false);
           }
@@ -379,11 +353,7 @@ export function ChatInterface({
         // Check if max attempts reached
         if (newAttempts >= maxAttempts) {
           // Show failure toast with Sonner
-          toast({
-            title: "Game Over",
-            description: "You've reached the maximum number of attempts.",
-            variant: "error"
-          });
+          toast.error("You've reached the maximum number of attempts.");
           
           // Game ended due to max attempts
           if (onGameEnd) {
@@ -426,11 +396,7 @@ export function ChatInterface({
       setError("Failed to send message. Please try again.");
       
       // Show error toast with Sonner
-      toast({
-        title: "Message Failed",
-        description: "Failed to send message. Please try again.",
-        variant: "error"
-      });
+      toast.error("Failed to send message. Please try again.");
     } finally {
       setIsLoading(false);
     }

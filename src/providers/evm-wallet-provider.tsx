@@ -170,7 +170,7 @@ export function EVMWalletProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Wallet not connected");
       }
 
-      // Get contract address
+      // Get contract address - contractName might be an actual address
       const contractAddress = getContractAddress(contractName);
 
       // Call the method
@@ -202,7 +202,12 @@ export function EVMWalletProvider({ children }: { children: React.ReactNode }) {
 
   // Helper function to get contract address
   const getContractAddress = (contractName?: string): string => {
-    const config = chainSelector.getCurrentConfig();
+    const config = chainSelector.getActiveChain();
+
+    // If the input looks like an address, return it directly
+    if (contractName?.startsWith('0x') && contractName?.length === 42) {
+      return contractName;
+    }
 
     if (!contractName) {
       return config.predictionMarketContract;
@@ -223,12 +228,12 @@ export function EVMWalletProvider({ children }: { children: React.ReactNode }) {
     // Return the appropriate ABI based on the contract name
     switch (contractName) {
       case "predictionMarket":
-        return baultroFinalAbi.abi as Abi;
+        return baultroFinalAbi.abi as unknown as Abi;
       case "gameModesContract":
-        return baultroGamesAbi.abi as Abi;
+        return baultroGamesAbi.abi as unknown as Abi;
       default:
-        // If no matching contract name, default to BaultroFinal
-        return baultroFinalAbi.abi as Abi;
+        // If contractName starts with 0x, it's likely an address - use a default ABI
+        return baultroFinalAbi.abi as unknown as Abi;
     }
   };
 

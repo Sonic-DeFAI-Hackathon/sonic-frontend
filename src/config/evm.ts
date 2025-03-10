@@ -16,12 +16,12 @@ export type Network = typeof NETWORKS[keyof typeof NETWORKS];
 // Current network based on environment
 export const CURRENT_NETWORK = (process.env.NEXT_PUBLIC_EVM_NETWORK || 'testnet') as Network;
 
-// Chain IDs
+// Re-export the Chain IDs from the chain selector
 export enum ChainId {
   ETHEREUM_MAINNET = 1,
   ETHEREUM_SEPOLIA = 11155111,
   ARBITRUM_SEPOLIA = 421614,
-  SONIC_BLAZE_TESTNET = 57054 // Corrected Sonic Blaze Testnet chain ID
+  SONIC_BLAZE_TESTNET = 57054 // Sonic Blaze Testnet chain ID
 }
 
 // Contract addresses by chain
@@ -40,16 +40,10 @@ export const CONTRACT_ADDRESSES: Record<number, { predictionMarket: string; game
   }
 };
 
-// Get the appropriate contract addresses for the current chain
-const currentChainId = ChainId.SONIC_BLAZE_TESTNET; // Default to Sonic Blaze Testnet
-const NETWORK_CONTRACTS = CONTRACT_ADDRESSES[currentChainId];
-
-// Export contract addresses
-export const PREDICTION_CONTRACT_ID = NETWORK_CONTRACTS.predictionMarket;
-export const GAME_MODES_CONTRACT_ID = NETWORK_CONTRACTS.gameModes;
+// Get the current chain from the chain selector
+const currentChain = chainSelector.getActiveChain();
 
 // Network configurations based on chain selector
-const currentChain = chainSelector.getCurrentChain();
 const NETWORK_CONFIGS = {
   [NETWORKS.MAINNET]: {
     nodeUrl: currentChain.rpcUrl,
@@ -155,14 +149,14 @@ export const CHANGE_METHODS = {
  * Get current EVM configuration
  */
 export const getConfig = (): ChainConfig => {
-  return chainSelector.getCurrentChain();
+  return chainSelector.getActiveChain();
 };
 
 /**
  * Get chain ID
  */
 export const getChainId = (): number => {
-  return chainSelector.getCurrentChainId();
+  return chainSelector.getActiveChainId(); // Fix: use getActiveChainId instead of getCurrentChainId
 };
 
 /**
@@ -184,8 +178,8 @@ export const CONFIG = {
   networkId: CURRENT_NETWORK,
   ...CURRENT_NETWORK_CONFIG,
   contracts: {
-    predictionMarket: PREDICTION_CONTRACT_ID,
-    gameModes: GAME_MODES_CONTRACT_ID,
+    predictionMarket: CONTRACT_ADDRESSES[currentChain.chainId].predictionMarket,
+    gameModes: CONTRACT_ADDRESSES[currentChain.chainId].gameModes,
   },
   gas: GAS_LIMITS,
   methods: CONTRACT_METHODS,

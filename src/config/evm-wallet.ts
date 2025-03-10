@@ -211,9 +211,9 @@ class EVMWallet implements EVMWalletInterface {
       }
     };
 
-    // Chain changed - Fix: Update the callback to accept unknown args and cast inside
+    // Chain changed - Fix: Use type assertion to handle the string chainId
     this.onChainChangedCallback = (...args: unknown[]) => {
-      const chainId = args[0] as string;
+      const chainId = String(args[0]); // Convert to string safely
       console.log("Chain changed:", chainId);
       const newChainId = parseInt(chainId, 16);
       
@@ -223,7 +223,7 @@ class EVMWallet implements EVMWalletInterface {
       }
     };
 
-    // Add listeners
+    // Add listeners with explicit type handling
     window.ethereum.on("accountsChanged", this.onAccountsChangedCallback as (...args: unknown[]) => void);
     window.ethereum.on("chainChanged", this.onChainChangedCallback);
   }

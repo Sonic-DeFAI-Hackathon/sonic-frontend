@@ -6,8 +6,11 @@
  */
 import { AIMessage } from "@/shared/schemas/chat/types";
 
+// Import environment configuration
+import { getZerePyApiUrl } from "@/lib/env";
+
 // Default API endpoint for ZerePy
-const DEFAULT_API_URL = "http://localhost:8000";
+const DEFAULT_API_URL = getZerePyApiUrl();
 
 // Interface for prompt request parameters
 interface PromptRequest {
@@ -55,18 +58,21 @@ export class UnifiedPromptApi {
         temperature = 0.7
       } = params;
 
-      // For mock mode, we don't need to include the chat history
-      // Just use a simpler request format
-      
-      // Prepare the request body
+      // Prepare the request body for ZerePy API with Together AI integration
       const requestBody = {
-        prompt,
+        prompt: prompt,
         system_prompt: systemPrompt,
-        temperature: temperature
+        temperature: temperature,
+        max_tokens: maxTokens,
+        // Include additional context from other parameters
+        context: {
+          chat_history: chatHistory,
+          game_type: gameType,
+          personality: personality || 'default'
+        }
       };
 
       console.log('Sending API request to:', `${this.apiUrl}/game/prompt`);
-      console.log('Request body:', JSON.stringify(requestBody));
       
       // Make the API call
       const response = await fetch(`${this.apiUrl}/game/prompt`, {

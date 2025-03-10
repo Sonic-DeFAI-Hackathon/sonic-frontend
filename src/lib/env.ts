@@ -1,15 +1,16 @@
 /**
  * ZerePy API environment configuration for Baultro
  * 
- * Add these functions to your server/env.ts file
+ * Configuration for connecting to the ZerePy backend
  */
 
 /**
  * Get the API URL for ZerePy
- * @returns The ZerePy API URL or empty string if not configured
+ * @returns The ZerePy API URL or default localhost:8000
  */
 export function getZerePyApiUrl(): string {
-  return process.env.ZEREPY_API_URL || '';
+  // Use environment variable if defined, otherwise use default localhost URL
+  return process.env.NEXT_PUBLIC_ZEREPY_API_URL || 'http://localhost:8000';
 }
 
 /**
@@ -18,15 +19,15 @@ export function getZerePyApiUrl(): string {
  */
 export function isZerePyConfigured(): boolean {
   const apiUrl = getZerePyApiUrl();
-  return !!apiUrl && apiUrl !== 'your_zerepy_api_url_here';
+  return !!apiUrl;
 }
 
 /**
  * Get the default AI provider for the application
- * @returns The default AI provider (gemini, zerepy, or together)
+ * @returns The default AI provider (always zerepy for this implementation)
  */
 export function getDefaultAIProvider(): string {
-  return process.env.DEFAULT_AI_PROVIDER || 'gemini';
+  return 'zerepy';
 }
 
 /**
@@ -34,8 +35,7 @@ export function getDefaultAIProvider(): string {
  * @returns true if the provider is ZerePy with Together AI
  */
 export function isTogetherAIProvider(): boolean {
-  const provider = getDefaultAIProvider();
-  return provider === 'together' || provider === 'zerepy-together';
+  return true; // We're using ZerePy with Together AI
 }
 
 /**
@@ -43,5 +43,5 @@ export function isTogetherAIProvider(): boolean {
  * @returns The configured Together AI model or default
  */
 export function getTogetherAIModel(): string {
-  return process.env.TOGETHER_MODEL || 'meta-llama/Llama-3-70b-chat-hf';
+  return process.env.NEXT_PUBLIC_TOGETHER_MODEL || 'meta-llama/Llama-3-70b-chat-hf';
 }

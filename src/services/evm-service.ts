@@ -184,17 +184,18 @@ export class EVMService {
    * Get contract ABI by name
    */
   private getContractAbi(contractName?: string): Abi {
+    // Make sure we're properly typing the ABIs to match the expected Abi type
     if (!contractName) {
-      return baultroFinalAbi.abi as Abi;
+      return baultroFinalAbi.abi as unknown as Abi;
     }
 
     switch (contractName) {
       case 'predictionMarket':
-        return baultroFinalAbi.abi as Abi;
+        return baultroFinalAbi.abi as unknown as Abi;
       case 'gameModesContract':
-        return baultroGamesAbi.abi as Abi;
+        return baultroGamesAbi.abi as unknown as Abi;
       default:
-        return baultroFinalAbi.abi as Abi;
+        return baultroFinalAbi.abi as unknown as Abi;
     }
   }
 
@@ -374,7 +375,9 @@ export class EVMService {
     args: unknown[] = []
   ): Promise<T> {
     // Extract the ABI array if we're passed a contract artifact object
-    const abiArray: Abi = Array.isArray(abi) ? (abi as Abi) : (abi && 'abi' in abi ? abi.abi as Abi : [] as unknown as Abi);
+    const abiArray: Abi = Array.isArray(abi) 
+      ? (abi as unknown as Abi) 
+      : (abi && 'abi' in abi ? abi.abi as unknown as Abi : [] as unknown as Abi);
     
     return evmWallet.callViewMethod<T>(
       contractAddress,
@@ -395,7 +398,10 @@ export class EVMService {
     value: string = "0"
   ): Promise<TransactionResponse> {
     // Extract the ABI array if we're passed a contract artifact object
-    const abiArray: Abi = Array.isArray(abi) ? (abi as Abi) : (abi && 'abi' in abi ? abi.abi as Abi : [] as unknown as Abi);
+    const abiArray: Abi = Array.isArray(abi) 
+      ? (abi as unknown as Abi) 
+      : (abi && 'abi' in abi ? abi.abi as unknown as Abi : [] as unknown as Abi);
+    
     const valueBigInt = BigInt(value);
     
     return evmWallet.callMethod(

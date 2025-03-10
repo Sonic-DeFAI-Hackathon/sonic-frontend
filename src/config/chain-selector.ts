@@ -3,8 +3,6 @@
  * 
  * Handles selection and management of blockchain networks
  */
-// Remove the unused import
-// import type { BlockchainNetworkConfig } from '@/schemas/blockchain';
 
 export interface ChainConfig {
   chainId: number;
@@ -31,49 +29,19 @@ class ChainSelector {
     // Initialize with Sonic Blaze Testnet by default
     this.activeChainId = 57054;
     
-    // Add Sonic Blaze Testnet
+    // Add Sonic Blaze Testnet (only chain we're using)
     this.chains[57054] = {
       chainId: 57054,
       name: "Sonic Blaze Testnet",
-      rpcUrl: "https://sonic-testnet.drpc.org",
-      blockExplorerUrl: "https://explorer.sonic.app",
+      rpcUrl: "https://rpc.blaze.soniclabs.com",
+      blockExplorerUrl: "https://testnet.sonicscan.org",
       nativeCurrency: {
         name: "Sonic",
-        symbol: "S",
+        symbol: "SONIC",
         decimals: 18,
       },
       predictionMarketContract: "0x1234567890123456789012345678901234567890",
       gameModesContract: "0x0987654321098765432109876543210987654321",
-    };
-    
-    // Add Sepolia testnet
-    this.chains[11155111] = {
-      chainId: 11155111,
-      name: "Sepolia",
-      rpcUrl: "https://eth-sepolia.g.alchemy.com/v2/your-api-key",
-      blockExplorerUrl: "https://sepolia.etherscan.io",
-      nativeCurrency: {
-        name: "Sepolia Ether",
-        symbol: "ETH",
-        decimals: 18,
-      },
-      predictionMarketContract: "0x1234567890123456789012345678901234567890",
-      gameModesContract: "0x0987654321098765432109876543210987654321",
-    };
-    
-    // Add Arbitrum Sepolia testnet
-    this.chains[421614] = {
-      chainId: 421614,
-      name: "Arbitrum Sepolia",
-      rpcUrl: "https://sepolia-rollup.arbitrum.io/rpc",
-      blockExplorerUrl: "https://sepolia.arbiscan.io",
-      nativeCurrency: {
-        name: "Arbitrum Sepolia Ether",
-        symbol: "ETH",
-        decimals: 18,
-      },
-      predictionMarketContract: "0xabcdef1234567890abcdef1234567890abcdef12",
-      gameModesContract: "0x123456abcdef7890123456abcdef7890123456ab",
     };
   }
   
@@ -142,27 +110,6 @@ class ChainSelector {
    */
   getPredictionMarketAddress(): string {
     return this.chains[this.activeChainId].predictionMarketContract;
-  }
-
-  /**
-   * Get current chain configuration (alias for getActiveChain)
-   */
-  getCurrentConfig(): ChainConfig {
-    return this.getActiveChain();
-  }
-
-  /**
-   * Get current chain ID (alias for getActiveChainId)
-   */
-  getCurrentChainId(): number {
-    return this.activeChainId;
-  }
-  
-  /**
-   * Get current chain
-   */
-  getCurrentChain(): ChainConfig {
-    return this.chains[this.activeChainId];
   }
 }
 

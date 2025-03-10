@@ -3,7 +3,9 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "isolatedModules": false,
-    "types": ["bun-types"]
+    "types": ["node", "jest"],
+    "esModuleInterop": true
   },
-  "include": ["tests/**/*.ts", "tests/**/*.tsx"]
+  "include": ["src", "tests"],
+  "exclude": ["node_modules"]
 }
